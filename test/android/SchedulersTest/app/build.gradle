@@ -1,0 +1,70 @@
+apply plugin: 'com.android.model.application'
+
+model {
+    android {
+        compileSdkVersion = 23
+        buildToolsVersion = "23.0.3"
+
+        defaultConfig {
+            applicationId = "de.knejp.schedulerstest"
+            minSdkVersion.apiLevel = 15
+            targetSdkVersion.apiLevel = 23
+            versionCode = 1
+            versionName = "1.0"
+
+            buildConfigFields {
+                create() {
+                    type "int"
+                    name "VALUE"
+                    value "1"
+                }
+            }
+        }
+        buildTypes {
+            release {
+                minifyEnabled = false
+                proguardFiles.add(file('proguard-android.txt'))
+            }
+        }
+        sources {
+            main {
+                java {
+                    source {
+                        srcDir "src"
+                        srcDir "../../../../src/java"
+                        srcDir "../../../../test/java"
+                        exclude "**/Test.java"
+                    }
+                }
+                jni {
+                    source {
+                        srcDir "../../../../src"
+                        srcDir "../../../../include"
+                        srcDir "../../../../test/java"
+                        srcDir "../../../../utils/djinni/support-lib/jni"
+                    }
+                }
+            }
+        }
+    }
+
+    android.ndk {
+        debuggable = true
+        moduleName "schedulers-android-test"
+        ldLibs.addAll(['log', 'android'])
+        toolchain = "clang"
+        stl = "c++_shared"
+        cppFlags.add("-std=c++14")
+        cppFlags.add("-fexceptions")
+        cppFlags.add("-frtti")
+        cppFlags.add("-I${file("../../../../include")}".toString())
+        cppFlags.add("-I${file("../../../../src")}".toString())
+        cppFlags.add("-I${file("../../../../utils/djinni/support-lib/jni")}".toString())
+    }
+}
+
+dependencies {
+    compile fileTree(dir: 'libs', include: ['*.jar'])
+    testCompile 'junit:junit:4.12'
+    compile 'com.android.support:appcompat-v7:23.2.1'
+}
