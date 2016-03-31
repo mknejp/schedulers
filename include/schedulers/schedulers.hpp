@@ -140,8 +140,12 @@ namespace schedulers
 
   namespace jni
   {
-    struct java_shared_native_pool;
+    struct default_scheduler;
     struct android_main_looper;
+  }
+  namespace objcpp
+  {
+    struct default_scheduler;
   }
 
   /**
@@ -225,6 +229,7 @@ public:
 
 private:
   friend available_scheduler<libdispatch_queue>;
+  friend objcpp::default_scheduler;
 
   template<class Alloc, class F>
   void schedule(const Alloc& alloc, F&& f) const
@@ -485,7 +490,11 @@ public:
 
 private:
   friend available_scheduler<java_shared_native_pool>;
-  friend jni::java_shared_native_pool;
+  friend jni::default_scheduler;
+
+  java_shared_native_pool(std::shared_ptr<thread_pool> pool)
+  : _pool(std::move(pool))
+  { }
 
   template<class Alloc, class F>
   void schedule(const Alloc& alloc, F&& f) const
@@ -540,14 +549,14 @@ class schedulers::android_main_looper : public unavailable_scheduler { };
 //
 
 class schedulers::default_scheduler
-#if defined(__APPLE__)
+#if defined(SCHEDULERS_FOR_JAVA)
+: public java_shared_native_pool
+#elif defined(__APPLE__)
 : public libdispatch_global_default
 #elif defined(__EMSCRIPTEN__)
 : public emscripten_async
 #elif defined(_WIN32)
 : public win32_default_pool
-#elif defined(SCHEDULERS_FOR_JAVA)
-: public java_shared_native_pool
 #else
 : public thread_pool
 #endif

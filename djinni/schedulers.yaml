@@ -1,0 +1,42 @@
+# Copyright (c) 2016, Miroslav Knejp
+
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+---
+name: schedulers_default_scheduler
+typedef: 'record'
+params: []
+prefix: schedulers_
+cpp:
+  typename: '::schedulers::default_scheduler'
+  header: '"schedulers/schedulers.hpp"'
+  byValue: false
+objc:
+  typename: 'dispatch_queue_t'
+  pointer: false
+  hash: 'reinterpret_cast<NSUInteger>(%s)'
+  boxed: 'dispatch_queue_t'
+  header: '<dispatch/dispatch.h>'
+objcpp:
+  translator: '::schedulers::objcpp::default_scheduler'
+  header: '"schedulers/schedulers-objcpp.hpp"'
+java:
+  reference: true
+  typename: 'de.knejp.schedulers.SharedNativeThreadPoolExecutor'
+  generic: true
+  hash: '%s.hashCode()'
+  boxed: 'de.knejp.schedulers.SharedNativeThreadPoolExecutor'
+jni:
+  translator: '::schedulers::jni::default_scheduler'
+  header: '"schedulers/schedulers-jni.hpp"'
+  typename: jobject
+  typeSignature: 'Lde/knejp/schedulers/SharedNativeThreadPoolExecutor;'

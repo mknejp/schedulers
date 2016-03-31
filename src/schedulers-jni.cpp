@@ -45,11 +45,11 @@ namespace
 // java_shared_native_pool
 //
 
-jni::java_shared_native_pool::java_shared_native_pool()
+jni::default_scheduler::default_scheduler()
 : JniInterface("de/knejp/schedulers/SharedNativeThreadPoolExecutor")
 { }
 
-jni::java_shared_native_pool::~java_shared_native_pool() = default;
+jni::default_scheduler::~default_scheduler() = default;
 
 namespace
 {
@@ -74,7 +74,7 @@ namespace
     djinni::JniClass<java_lang_Runnable>::get();
     djinni::JniClass<de_knejp_schedulers_SharedNativeThreadPoolExecutor>::get();
     djinni::JniClass<de_knejp_schedulers_NativeWorkerCallstack>::get();
-    djinni::JniClass<jni::java_shared_native_pool>::get();
+    djinni::JniClass<jni::default_scheduler>::get();
 
     JavaVM* jvm;
     if(djinni::jniGetThreadEnv()->GetJavaVM(&jvm) != JNI_OK)
@@ -143,10 +143,11 @@ java_shared_native_pool::java_shared_native_pool(unsigned num_threads)
 {
 }
 
-auto jni::java_shared_native_pool::fromCpp(JNIEnv* jniEnv, const CppType& c)
+auto jni::default_scheduler::fromCpp(JNIEnv* jniEnv, const CppType& c)
 -> djinni::LocalRef<JniType>
 {
-  return {jniEnv, djinni::JniClass<jni::java_shared_native_pool>::get()._toJava(jniEnv, c._pool)};
+  const auto& pool = static_cast<const java_shared_native_pool&>(c);
+  return {jniEnv, djinni::JniClass<jni::default_scheduler>::get()._toJava(jniEnv, pool._pool)};
 }
 
 CJNIEXPORT void JNICALL Java_de_knejp_schedulers_SharedNativeThreadPoolExecutor_nativeShutdown(JNIEnv* jniEnv,

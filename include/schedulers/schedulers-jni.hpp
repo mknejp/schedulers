@@ -23,23 +23,23 @@ namespace schedulers
 {
   namespace jni
   {
-    struct java_shared_native_pool;
+    struct default_scheduler;
   }
 }
 
-struct schedulers::jni::java_shared_native_pool
-: ::djinni::JniInterface<::schedulers::thread_pool, java_shared_native_pool>
+struct schedulers::jni::default_scheduler
+: ::djinni::JniInterface<::schedulers::thread_pool, default_scheduler>
 {
-  using CppType = ::schedulers::java_shared_native_pool;
+  using CppType = ::schedulers::default_scheduler;
   using JniType = jobject;
 
   using Boxed = java_shared_native_pool;
 
-  java_shared_native_pool();
-  ~java_shared_native_pool();
+  default_scheduler();
+  ~default_scheduler();
 
-  // We only support conversion *from* C++, not the other way round to preserve value semantics of the C++ type.
+  // We only support conversion *from* C++, not the other way round.
   // This means in practice it can only be used as return type from +c interface methods.
   static auto fromCpp(JNIEnv* jniEnv, const CppType& c) -> ::djinni::LocalRef<JniType>;
-  static auto toCpp(JNIEnv jniEnv, JniType j) -> CppType; // not implemented!
+  static auto toCpp(JNIEnv* jniEnv, JniType j) -> CppType; // not implemented!
 };

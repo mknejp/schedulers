@@ -12,17 +12,30 @@
 // ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-#define SCHEDULERS_FOR_JAVA 1
+#pragma once
+
 #include "schedulers/schedulers.hpp"
-#include "schedulers/schedulers-jni.hpp"
-#include <condition_variable>
-#include <iostream>
 
-using namespace schedulers;
-
-CJNIEXPORT jobject JNICALL Java_de_knejp_schedulerstest_SharedNativeThreadPoolTest_createSharedNativePool(JNIEnv* jniEnv,
-                                                                                                          jobject /*this*/)
+namespace schedulers
 {
-  default_scheduler pool;
-  return djinni::release(jni::default_scheduler::fromCpp(jniEnv, pool));
+  namespace objcpp
+  {
+    struct default_scheduler;
+  }
 }
+
+struct schedulers::objcpp::default_scheduler
+{
+  using CppType = ::schedulers::default_scheduler;
+  using ObjcType = dispatch_queue_t;
+
+  using Boxed = libdispatch_queue;
+
+  // We only support conversion *from* C++, not the other way round.
+  // This means in practice it can only be used as return type from +c interface methods.
+  static auto fromCpp(const CppType& c) -> dispatch_queue_t
+  {
+    return static_cast<const libdispatch_queue&>(c)._queue;
+  }
+  static auto toCpp(dispatch_queue_t obj) -> CppType; // not implemented!
+};
