@@ -481,7 +481,7 @@ public:
    \warn There must be a Java frame and class loader on the current thread's callstack to run this constructor.
    */
   explicit java_shared_native_pool(unsigned num_threads);
-  java_shared_native_pool(const java_shared_native_pool&) = delete;
+  java_shared_native_pool(const java_shared_native_pool&) = default;
   java_shared_native_pool(java_shared_native_pool&&) = default;
   /**
    \warn The destructor must not run on a thread belonging to the thread pool otherwise it will deadlock.
