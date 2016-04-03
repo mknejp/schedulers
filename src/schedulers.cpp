@@ -25,18 +25,18 @@ const main_thread_task_queue main_thread_task_queue::_instance{};
 
 auto main_thread_task_queue::clear() const noexcept -> void
 {
-  std::deque<std::function<void()>> temp;
+  std::deque<detail::work_item> temp;
   lock_t lock{_mutex};
   swap(_queue, temp);
 }
 
-auto main_thread_task_queue::push(std::function<void()>&& f) const -> void
+auto main_thread_task_queue::push(detail::work_item&& f) const -> void
 {
   lock_t lock{_mutex};
   _queue.emplace_back(move(f));
 }
 
-auto main_thread_task_queue::try_pop(std::function<void()>& f) const -> bool
+auto main_thread_task_queue::try_pop(detail::work_item& f) const -> bool
 {
   lock_t lock{_mutex};
   if(_queue.empty())
@@ -61,7 +61,7 @@ auto thread_pool::task_queue::done() const -> void
   _ready.notify_all();
 }
 
-auto thread_pool::task_queue::try_pop(std::function<void()>& f) const -> bool
+auto thread_pool::task_queue::try_pop(detail::work_item& f) const -> bool
 {
   lock_t lock{_mutex, std::try_to_lock};
   if(!lock || _queue.empty())
@@ -73,7 +73,7 @@ auto thread_pool::task_queue::try_pop(std::function<void()>& f) const -> bool
   return true;
 }
 
-auto thread_pool::task_queue::try_push(std::function<void()>& f)  const -> bool
+auto thread_pool::task_queue::try_push(detail::work_item& f)  const -> bool
 {
   {
     lock_t lock{_mutex, std::try_to_lock};
@@ -87,7 +87,7 @@ auto thread_pool::task_queue::try_push(std::function<void()>& f)  const -> bool
   return true;
 }
 
-auto thread_pool::task_queue::pop(std::function<void()>& f) const -> bool
+auto thread_pool::task_queue::pop(detail::work_item& f) const -> bool
 {
   lock_t lock{_mutex};
   while(_queue.empty() && !_done)
@@ -103,7 +103,7 @@ auto thread_pool::task_queue::pop(std::function<void()>& f) const -> bool
   return true;
 }
 
-auto thread_pool::task_queue::push(std::function<void()>&& f) const -> void
+auto thread_pool::task_queue::push(detail::work_item&& f) const -> void
 {
   {
     lock_t lock{_mutex};
@@ -133,7 +133,7 @@ thread_pool::~thread_pool()
   }
 }
 
-auto thread_pool::push(std::function<void()> f) const -> void
+auto thread_pool::push(detail::work_item&& f) const -> void
 {
   assert(f && "empty function object scheduled to thread pool");
   auto thread = _next_thread++;
@@ -152,7 +152,7 @@ auto thread_pool::run(unsigned index) const -> void
 {
   while(true)
   {
-    std::function<void()> f;
+    detail::work_item f;
     constexpr unsigned rounds = 8; // How many times we try to steal before sticking to our own queue
 
     for(unsigned i = 0; i < _num_threads * rounds; ++i)
@@ -168,6 +168,6 @@ auto thread_pool::run(unsigned index) const -> void
       break;
     }
 
-    f();
+    move(f)();
   }
 }

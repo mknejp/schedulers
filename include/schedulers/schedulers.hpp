@@ -14,9 +14,7 @@
 
 #pragma once
 #include "schedulers/package_task_as_c_callback.hpp"
-#include <cassert>
 #include <deque>
-#include <functional>
 #include <thread>
 #include <vector>
 
@@ -158,8 +156,8 @@ namespace schedulers
   public:
     /// Call from "main thread" scheduler's destructors to cleanup any pending tasks.
     auto clear() const noexcept -> void;
-    auto push(std::function<void()>&& f) const -> void;
-    auto try_pop(std::function<void()>& f) const -> bool;
+    auto push(detail::work_item&& f) const -> void;
+    auto try_pop(detail::work_item& f) const -> bool;
 
     static auto get() noexcept -> const main_thread_task_queue&
     {
@@ -173,7 +171,7 @@ namespace schedulers
     static const main_thread_task_queue _instance;
 
     mutable std::mutex _mutex;
-    mutable std::deque<std::function<void()>> _queue;
+    mutable std::deque<detail::work_item> _queue;
   };
 }
 
@@ -258,13 +256,13 @@ private:
   template<class Alloc, class F>
   auto scheduler(const Alloc& alloc, F&& f) const
   {
-    main_thread_task_queue::get().push({std::allocator_arg, alloc, forward<F>(f)});
+    main_thread_task_queue::get().push({alloc, forward<F>(f)});
     dispatch_async_f(dispatch_get_main_queue(), nullptr, [] (void*)
                      {
-                       std::function<void()> f;
+                       detail::work_item f;
                        if(main_thread_task_queue::get().try_pop(f))
                        {
-                         f();
+                         move(f)();
                        }
                      });
   }
@@ -433,14 +431,14 @@ private:
   {
   public:
     auto done() const -> void;
-    auto pop(std::function<void()>& f) const -> bool;
-    auto push(std::function<void()>&& f) const -> void;
-    auto try_pop(std::function<void()>& f) const -> bool;
-    auto try_push(std::function<void()>& f)  const -> bool;
+    auto pop(detail::work_item& f) const -> bool;
+    auto push(detail::work_item&& f) const -> void;
+    auto try_pop(detail::work_item& f) const -> bool;
+    auto try_push(detail::work_item& f)  const -> bool;
 
   private:
     mutable std::mutex _mutex;
-    mutable std::deque<std::function<void()>> _queue;
+    mutable std::deque<detail::work_item> _queue;
     mutable std::condition_variable _ready;
     mutable bool _done{false};
   };
@@ -448,11 +446,10 @@ private:
   template<class Alloc, class F>
   auto schedule(const Alloc& alloc, F&& f) const -> void
   {
-    auto fun = std::function<void()>{std::allocator_arg, alloc, std::forward<F>(f)};
-    push(std::move(fun));
+    push({alloc, forward<F>(f)});
   }
 
-  auto push(std::function<void()> f) const -> void;
+  auto push(detail::work_item&& f) const -> void;
   auto run(unsigned index) const -> void;
 
   const unsigned _num_threads;
@@ -530,7 +527,7 @@ private:
   template<class Alloc, class F>
   auto schedule(const Alloc& alloc, F&& f) const -> void
   {
-    main_thread_task_queue::get().push({std::allocator_arg, alloc, forward<F>(f)});
+    main_thread_task_queue::get().push({alloc, forward<F>(f)});
     post();
   }
 
@@ -551,10 +548,10 @@ class schedulers::android_main_looper : public unavailable_scheduler { };
 class schedulers::default_scheduler
 #if defined(SCHEDULERS_FOR_JAVA)
 : public java_shared_native_pool
-#elif defined(__APPLE__)
-: public libdispatch_global_default
 #elif defined(__EMSCRIPTEN__)
 : public emscripten_async
+#elif defined(__APPLE__)
+: public libdispatch_global_default
 #elif defined(_WIN32)
 : public win32_default_pool
 #else

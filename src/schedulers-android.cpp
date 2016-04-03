@@ -28,10 +28,10 @@ namespace
 		// We cannot loop here otherwise we could get into infinite loops if the callback enqueues a new callback on the main thread. However we know there are as many bytes waiting in the pipe as there are scheduled callbacks so this callback will be called again for each.
 		if(read(fd, &byte, sizeof(byte)) > 0)
     {
-      std::function<void()> f;
+      detail::work_item f;
       if(main_thread_task_queue::get().try_pop(f))
       {
-        f();
+        move(f)();
       }
     }
     return 1; // Continue receiving events
