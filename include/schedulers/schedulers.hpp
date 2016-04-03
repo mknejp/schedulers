@@ -420,7 +420,7 @@ public:
    
    Any scheduled but not yet executed tasks are no longer called but instead destroyed. When using the constructor overload with a custom `thread_factory` you have to make sure the custom thread exits in a timely fashion once the thread proc returns to avoid unnecessary stalling in the destructor.
    
-   \warn The destructor must not run on a thread belonging to the thread pool otherwise it will deadlock.
+   \warning The destructor must not run on a thread belonging to the thread pool otherwise it will deadlock.
    */
   ~thread_pool();
 
@@ -472,19 +472,19 @@ public:
   /**
    Create a new C++ thread pool designed to be interoperable with Java as a `java.util.concurrent.Executor` with `hardware_cuncurreny` threads.
    
-   \warn There must be a Java frame and class loader on the current thread's callstack to run this constructor.
+   \warning There must be a Java frame and class loader on the current thread's callstack to run this constructor.
    */
   java_shared_native_pool() : java_shared_native_pool(std::thread::hardware_concurrency()) { }
   /**
    Create a new C++ thread pool designed to be interoperable with Java as a `java.util.concurrent.Executor` with `num_threads` threads.
 
-   \warn There must be a Java frame and class loader on the current thread's callstack to run this constructor.
+   \warning There must be a Java frame and class loader on the current thread's callstack to run this constructor.
    */
   explicit java_shared_native_pool(unsigned num_threads);
   java_shared_native_pool(const java_shared_native_pool&) = default;
   java_shared_native_pool(java_shared_native_pool&&) = default;
   /**
-   \warn The destructor must not run on a thread belonging to the thread pool otherwise it will deadlock.
+   \warning The destructor must not run on a thread belonging to the thread pool otherwise it will deadlock.
    */
   ~java_shared_native_pool() = default;
 
