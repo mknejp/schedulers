@@ -68,7 +68,7 @@ namespace
     return (jvm->*f)(env, args);
   }
 
-  auto make_java_attached_thread = [] (unsigned idx, auto&& f)
+  auto make_java_attached_thread = [] (int idx, const auto& queue, auto&& f)
   {
     // Ensure the classes are initialized on a thread with a class loader (i.e. main thread)
     djinni::JniClass<java_lang_Runnable>::get();
@@ -138,8 +138,8 @@ CJNIEXPORT void JNICALL Java_de_knejp_schedulers_NativeWorkerCallstack_run(JNIEn
   } JNI_TRANSLATE_EXCEPTIONS_RETURN(jniEnv, )
 }
 
-java_shared_native_pool::java_shared_native_pool(unsigned num_threads)
-: _pool(std::make_shared<thread_pool>(make_java_attached_thread, num_threads))
+java_shared_native_pool::java_shared_native_pool(int num_threads)
+: _pool(std::make_shared<pool_t>(make_java_attached_thread, num_threads))
 {
 }
 

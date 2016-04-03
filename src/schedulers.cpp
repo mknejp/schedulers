@@ -16,6 +16,7 @@
 
 using schedulers::thread_pool;
 using schedulers::main_thread_task_queue;
+using schedulers::thread_pool_task_queue;
 
 const main_thread_task_queue main_thread_task_queue::_instance{};
 
@@ -49,10 +50,10 @@ auto main_thread_task_queue::try_pop(detail::work_item& f) const -> bool
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// task_system::task_queue
+// thread_pool_work_queue
 //
 
-auto thread_pool::task_queue::done() const -> void
+auto thread_pool_task_queue::done() const -> void
 {
   {
     lock_t lock{_mutex};
@@ -61,7 +62,7 @@ auto thread_pool::task_queue::done() const -> void
   _ready.notify_all();
 }
 
-auto thread_pool::task_queue::try_pop(detail::work_item& f) const -> bool
+auto thread_pool_task_queue::try_pop(detail::work_item& f) const -> bool
 {
   lock_t lock{_mutex, std::try_to_lock};
   if(!lock || _queue.empty())
@@ -73,7 +74,7 @@ auto thread_pool::task_queue::try_pop(detail::work_item& f) const -> bool
   return true;
 }
 
-auto thread_pool::task_queue::try_push(detail::work_item& f)  const -> bool
+auto thread_pool_task_queue::try_push(detail::work_item& f)  const -> bool
 {
   {
     lock_t lock{_mutex, std::try_to_lock};
@@ -87,7 +88,7 @@ auto thread_pool::task_queue::try_push(detail::work_item& f)  const -> bool
   return true;
 }
 
-auto thread_pool::task_queue::pop(detail::work_item& f) const -> bool
+auto thread_pool_task_queue::pop(detail::work_item& f) const -> bool
 {
   lock_t lock{_mutex};
   while(_queue.empty() && !_done)
@@ -103,7 +104,7 @@ auto thread_pool::task_queue::pop(detail::work_item& f) const -> bool
   return true;
 }
 
-auto thread_pool::task_queue::push(detail::work_item&& f) const -> void
+auto thread_pool_task_queue::push(detail::work_item&& f) const -> void
 {
   {
     lock_t lock{_mutex};
@@ -116,58 +117,14 @@ auto thread_pool::task_queue::push(detail::work_item&& f) const -> void
 // thread_pool
 //
 
-thread_pool::thread_pool(unsigned num_threads)
-: thread_pool([] (unsigned, auto&& f) { return std::thread{forward<decltype(f)>(f)}; }, num_threads)
+namespace
 {
+  auto make_thread = [] (int index, const auto& queue, auto&& f)
+  {
+    return std::thread(std::forward<decltype(f)>(f));
+  };
 }
 
-thread_pool::~thread_pool()
-{
-  for(auto&& q : _task_queues)
-  {
-    q.done();
-  }
-  for(auto&& t : _threads)
-  {
-    t.join();
-  }
-}
-
-auto thread_pool::push(detail::work_item&& f) const -> void
-{
-  assert(f && "empty function object scheduled to thread pool");
-  auto thread = _next_thread++;
-
-  for(unsigned i = 0; i < _num_threads; ++i)
-  {
-    if(_task_queues[(thread + i) % _num_threads].try_push(f))
-    {
-      return;
-    }
-  }
-  _task_queues[(thread % _num_threads)].push(move(f));
-}
-
-auto thread_pool::run(unsigned index) const -> void
-{
-  while(true)
-  {
-    detail::work_item f;
-    constexpr unsigned rounds = 8; // How many times we try to steal before sticking to our own queue
-
-    for(unsigned i = 0; i < _num_threads * rounds; ++i)
-    {
-      if(_task_queues[(index + i) % _num_threads].try_pop(f))
-      {
-        break;
-      }
-    }
-
-    if(!f && !_task_queues[index].pop(f))
-    {
-      break;
-    }
-
-    move(f)();
-  }
-}
+schedulers::thread_pool::thread_pool(int num_threads)
+: basic_thread_pool(make_thread)
+{ }

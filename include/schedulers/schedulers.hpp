@@ -55,6 +55,18 @@ namespace schedulers
    */
   class default_scheduler;
   /**
+   A thread pool with customizable task queue and thread object.
+
+   The thread pool implements task stealing between the per-thread queues using the `try_push()` and `try_pop()` methods of `WorkQueue`. If the queues do not support task stealing these methods should always return `false` and do nothing.
+
+   The number of threads is fixed upon creation of the pool.
+
+   \tparam WorkQueue The type used for the per-thread work queue. Must be `DefaultConstructible`. All calls to the queues (except the constructor and destructor) must be data race free. The nested type `work_t` must have one of these constructor signatures: `work_t(std::allocator_arg_t, Alloc, F)`, or `work_t(F, Alloc)` if `std::uses_allocator<work_t, Alloc>::value` is `true`, or `work_t(F)` otherwise.
+   \tparam ThreadHandle The type used to own the system threads. The factory provided in the constructor is called to create and launch each thread. The type must have `join()` method with the same semantics as `std::thread::join()`.
+   */
+  template<class WorkQueue, class ThreadHandle>
+  class basic_thread_pool;
+  /**
    Schedules tasks to a user-created thread pool.
    
    \note If your application uses Java you will not be able to call Java methods via JNI from tasks on this scheduler unless your thread factory makes the necessary precautions.
@@ -173,6 +185,12 @@ namespace schedulers
     mutable std::mutex _mutex;
     mutable std::deque<detail::work_item> _queue;
   };
+  /**
+   The default task queue used in the thread_pool class.
+   
+   This also provides the minimum interface required for user-defined queues.
+   */
+  class thread_pool_task_queue;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -388,74 +406,255 @@ auto schedulers::make_shared_scheduler(Args&&... args)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// custom_thread_pool
+//
+
+template<class WorkQueue, class ThreadHandle>
+class schedulers::basic_thread_pool
+: public available_scheduler<basic_thread_pool<WorkQueue, ThreadHandle>>
+{
+public:
+  using work_t = typename WorkQueue::work_t;
+  static_assert(std::is_default_constructible<work_t>(), "Work item of work queue must be default constructible");
+  static_assert(std::is_convertible<decltype(!std::declval<work_t>()), bool>(), "Work item of work queue must be contextually convertible to bool");
+
+  /**
+   Create a thread pool with the given thread factory and number of threads.
+   
+   \param f A factory for threads. It is called with the zero-based thread index, a reference to the thread's own work queue, and a `Callable<void()>`. The thread owned by the returned handle must call a copy of the provided function in the context of the new thread and exit in a timely fashion once it returns.
+   \param num_threads Determines how many threads are created for the pool.
+   */
+  template<class ThreadFactory>
+  basic_thread_pool(ThreadFactory f, unsigned num_threads = std::thread::hardware_concurrency());
+  /**
+   The destructor blocks until all threads in the pool exit.
+
+   What happens to any scheduled but not yet executed tasks is the responsibility of `WorkQueue`.
+
+   \warning The destructor must not run on a thread belonging to the thread pool otherwise it will deadlock.
+   */
+  ~basic_thread_pool();
+
+private:
+  friend available_scheduler<basic_thread_pool<WorkQueue, ThreadHandle>>;
+
+  template<class ThreadFactory>
+  auto start(ThreadFactory& f, std::true_type /* ok */) -> void;
+
+  template<class ThreadFactory>
+  auto start(ThreadFactory& f, std::false_type /* not ok */) -> void;
+
+  // A little dance to figure out how to construct work_t
+  template<class Alloc, class F>
+  auto schedule(const Alloc& alloc, F&& f) const -> void;
+  // Supports (allocator_arg, alloc, f)
+  template<class Alloc, class F>
+  auto schedule(const Alloc& alloc,
+                F&& f,
+                std::true_type /* has allocator_arg_t */,
+                dont_care_t /* uses_allocator */) const -> void;
+  // Supports (f, alloc)
+  template<class Alloc, class F>
+  auto schedule(const Alloc& alloc,
+                F&& f,
+                std::false_type /* has allocator_arg_t */,
+                std::true_type /* uses_allocator */) const -> void;
+  template<class Alloc, class F>
+  // No allocator support
+  auto schedule(const Alloc& alloc,
+                F&& f,
+                std::false_type /* has allocator_arg_t */,
+                std::false_type /* uses_allocator */) const -> void;
+  auto schedule(work_t&& work) const -> void;
+
+  auto run(int index) const -> void;
+
+  const unsigned _num_threads;
+  std::vector<WorkQueue> _queues{_num_threads};
+  std::vector<ThreadHandle> _threads;
+  mutable std::atomic<unsigned> _next_thread{0}; // Must be unsigned because it can overflow
+};
+
+template<class WorkQueue, class ThreadHandle>
+template<class ThreadFactory>
+schedulers::basic_thread_pool<WorkQueue, ThreadHandle>::basic_thread_pool(ThreadFactory f,
+                                                                          unsigned num_threads)
+: _num_threads(num_threads)
+{
+  auto thread_proc = [this, i = 0] {};
+  constexpr auto thread_factory_ok = std::is_constructible<ThreadHandle, std::result_of_t<ThreadFactory&(unsigned, const WorkQueue&, decltype(thread_proc))>>();
+
+  static_assert(thread_factory_ok, "ThreadFactory must be Callable<R(unsigned, F)> with F a Callable<void()> and R convertible to ThreadHandle");
+
+  start(f, bool_constant<thread_factory_ok>());
+}
+
+template<class WorkQueue, class ThreadHandle>
+schedulers::basic_thread_pool<WorkQueue, ThreadHandle>::~basic_thread_pool()
+{
+  for(auto&& q : _queues)
+  {
+    q.done();
+  }
+  for(auto&& t : _threads)
+  {
+    t.join();
+  }
+}
+
+template<class WorkQueue, class ThreadHandle>
+template<class ThreadFactory>
+auto schedulers::basic_thread_pool<WorkQueue, ThreadHandle>::start(ThreadFactory& f,
+                                                                   std::true_type /* ok */)
+-> void
+{
+  assert(_num_threads > 0 && "invalid number of threads");
+
+  _threads.reserve(_num_threads);
+  for(int i = 0; i < _num_threads; ++i)
+  {
+    _threads.emplace_back(f(i, _queues[i], [this, i] { run(i); }));
+  }
+}
+
+template<class WorkQueue, class ThreadHandle>
+template<class Alloc, class F>
+auto schedulers::basic_thread_pool<WorkQueue, ThreadHandle>::schedule(const Alloc& alloc, F&& f) const
+-> void
+{
+  constexpr auto has_allocator_arg = std::is_constructible<work_t, std::allocator_arg_t, Alloc, F&&>::value;
+  constexpr auto uses_alloc = std::uses_allocator<work_t, Alloc>::value;
+
+  schedule(alloc, forward<F>(f), bool_constant<has_allocator_arg>(), bool_constant<uses_alloc>());
+}
+
+template<class WorkQueue, class ThreadHandle>
+template<class Alloc, class F>
+auto schedulers::basic_thread_pool<WorkQueue, ThreadHandle>::schedule(const Alloc& alloc,
+                                                                      F&& f,
+                                                                      std::true_type /* has allocator_arg_t */,
+                                                                      dont_care_t /* uses_allocator */) const
+-> void
+{
+  schedule(work_t{std::allocator_arg, alloc, forward<F>(f)});
+}
+
+template<class WorkQueue, class ThreadHandle>
+template<class Alloc, class F>
+auto schedulers::basic_thread_pool<WorkQueue, ThreadHandle>::schedule(const Alloc& alloc,
+                                                                      F&& f,
+                                                                      std::false_type /* has allocator_arg_t */,
+                                                                      std::true_type /* uses_allocator */) const
+-> void
+{
+  schedule(work_t{forward<F>(f), alloc});
+}
+
+template<class WorkQueue, class ThreadHandle>
+template<class Alloc, class F>
+auto schedulers::basic_thread_pool<WorkQueue, ThreadHandle>::schedule(const Alloc& /*alloc*/,
+                                                                      F&& f,
+                                                                      std::false_type /* has allocator_arg_t */,
+                                                                      std::false_type /* uses_allocator */) const
+-> void
+{
+  schedule(work_t{forward<F>(f)});
+}
+
+template<class WorkQueue, class ThreadHandle>
+auto schedulers::basic_thread_pool<WorkQueue, ThreadHandle>::schedule(work_t&& f) const -> void
+{
+  auto thread = _next_thread++;
+
+  for(unsigned i = 0; i < _num_threads; ++i)
+  {
+    if(_queues[(thread + i) % _num_threads].try_push(f))
+    {
+      return;
+    }
+  }
+  _queues[(thread % _num_threads)].push(move(f));
+}
+
+template<class WorkQueue, class ThreadHandle>
+auto schedulers::basic_thread_pool<WorkQueue, ThreadHandle>::run(int index) const -> void
+{
+  while(true)
+  {
+    work_t f;
+    constexpr unsigned rounds = 8; // How many times we try to steal before sticking to our own queue
+
+    for(int i = 0; i < _num_threads * rounds; ++i)
+    {
+      if(_queues[(index + i) % _num_threads].try_pop(f))
+      {
+        break;
+      }
+    }
+
+    if(!f && !_queues[index].pop(f))
+    {
+      break;
+    }
+
+    move(f)();
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // thread_pool
 //
 
-class schedulers::thread_pool : public available_scheduler<thread_pool>
+class schedulers::thread_pool_task_queue
+{
+public:
+  // The type of function object stored in the queue
+  using work_t = detail::work_item;
+
+  /**
+   Notify the queue to exit.
+
+   Any threads waiting on pop() must exit in a timely fashion. Calls to try_pop() must fail even if the queue is not empty.
+   */
+  auto done() const -> void;
+  /**
+   Wait for a work item to appear in the queue and pop it.
+   */
+  auto pop(work_t& f) const -> bool;
+  /**
+   Push a new work item to the queue, blocking if necessary.
+   */
+  auto push(work_t&& f) const -> void;
+  /**
+   Try to pop a work item from the queue without blocking.
+
+   If a work item is available and it can be popped without blocking then return `true` and extract the work item into `f`.
+   */
+  auto try_pop(work_t& f) const -> bool;
+  /**
+   Try to push a work item into the queue without blocking.
+
+   If the work item can be pushed into the queue without blocking then copy it into `f` and return `true`. Otherwise return `false`.
+   */
+  auto try_push(work_t& f)  const -> bool;
+
+private:
+  using lock_t = std::unique_lock<std::mutex>;
+
+  mutable std::mutex _mutex;
+  mutable std::deque<work_t> _queue;
+  mutable std::condition_variable _ready;
+  mutable bool _done{false};
+};
+
+class schedulers::thread_pool
+: public basic_thread_pool<thread_pool_task_queue, std::thread>
 {
 public:
   /**
    Create a thread pool using the given number of standard C++ threads.
    */
-  explicit thread_pool(unsigned num_threads = std::thread::hardware_concurrency());
-  /**
-   Create a thread pool using the provided thread factory to create the given number of threads.
-   
-   \param thread_factory A callable object with signature `std::thread(unsigned, void())`. The thread owned by the returned `std::thread` instance must call the provided thread proc on the new thread and must exit once that returns.
-   */
-  template<class F>
-  explicit thread_pool(F thread_factory, unsigned num_threads = std::thread::hardware_concurrency())
-  : _num_threads(num_threads)
-  {
-    for(unsigned i = 0; i < _num_threads; ++i)
-    {
-      _threads.push_back(thread_factory(i, [this, i] { run(i); }));
-      assert(_threads[i].joinable() && "thread_factory must return joinable threads");
-    }
-  }
-  /**
-   The destructor blocks until all threads in the pool exit.
-   
-   Any scheduled but not yet executed tasks are no longer called but instead destroyed. When using the constructor overload with a custom `thread_factory` you have to make sure the custom thread exits in a timely fashion once the thread proc returns to avoid unnecessary stalling in the destructor.
-   
-   \warning The destructor must not run on a thread belonging to the thread pool otherwise it will deadlock.
-   */
-  ~thread_pool();
-
-private:
-  friend available_scheduler<thread_pool>;
-
-  using lock_t = std::unique_lock<std::mutex>;
-
-  class task_queue
-  {
-  public:
-    auto done() const -> void;
-    auto pop(detail::work_item& f) const -> bool;
-    auto push(detail::work_item&& f) const -> void;
-    auto try_pop(detail::work_item& f) const -> bool;
-    auto try_push(detail::work_item& f)  const -> bool;
-
-  private:
-    mutable std::mutex _mutex;
-    mutable std::deque<detail::work_item> _queue;
-    mutable std::condition_variable _ready;
-    mutable bool _done{false};
-  };
-
-  template<class Alloc, class F>
-  auto schedule(const Alloc& alloc, F&& f) const -> void
-  {
-    push({alloc, forward<F>(f)});
-  }
-
-  auto push(detail::work_item&& f) const -> void;
-  auto run(unsigned index) const -> void;
-
-  const unsigned _num_threads;
-  std::vector<task_queue> _task_queues{_num_threads};
-  std::vector<std::thread> _threads;
-  mutable std::atomic<unsigned> _next_thread{0};
+  explicit thread_pool(int num_threads = std::thread::hardware_concurrency());
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -477,13 +676,7 @@ public:
 
    \warning There must be a Java frame and class loader on the current thread's callstack to run this constructor.
    */
-  explicit java_shared_native_pool(unsigned num_threads);
-  java_shared_native_pool(const java_shared_native_pool&) = default;
-  java_shared_native_pool(java_shared_native_pool&&) = default;
-  /**
-   \warning The destructor must not run on a thread belonging to the thread pool otherwise it will deadlock.
-   */
-  ~java_shared_native_pool() = default;
+  explicit java_shared_native_pool(int num_threads);
 
 private:
   friend available_scheduler<java_shared_native_pool>;
@@ -499,8 +692,10 @@ private:
     (*_pool)(alloc, forward<F>(f));
   }
 
+  using pool_t = basic_thread_pool<thread_pool_work_queue, std::thread>;
+
   // Use shared_ptr so it can be passed to Java via Djinni without forcing java_shared_native_pool into a shared_ptr
-  std::shared_ptr<thread_pool> _pool;
+  std::shared_ptr<pool_t> _pool;
 };
 #else
 class schedulers::java_shared_native_pool : public unavailable_scheduler { };
@@ -527,7 +722,7 @@ private:
   template<class Alloc, class F>
   auto schedule(const Alloc& alloc, F&& f) const -> void
   {
-    main_thread_task_queue::get().push({alloc, forward<F>(f)});
+    main_thread_task_queue::get().push({std::allocator_arg, alloc, forward<F>(f)});
     post();
   }
 

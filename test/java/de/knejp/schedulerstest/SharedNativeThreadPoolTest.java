@@ -34,7 +34,27 @@ public class SharedNativeThreadPoolTest
 
 		if(!latch.await(10, java.util.concurrent.TimeUnit.SECONDS))
 		{
-			System.out.println("Tests timed out.");
+			System.out.println("First tests timed out.");
+			System.exit(1);
+		}
+
+		final int numTasks = 10000;
+		latch = new CountDownLatch(numTasks);
+		for(int i = 0; i < numTasks; ++i)
+		{
+			executor.execute(new Runnable()
+			{
+				@Override
+				public void run()
+				{
+					latch.countDown();
+				}
+			});
+		}
+
+		if(!latch.await(10, java.util.concurrent.TimeUnit.SECONDS))
+		{
+			System.out.println("Second tests timed out.");
 			System.exit(1);
 		}
 		executor.shutdown();

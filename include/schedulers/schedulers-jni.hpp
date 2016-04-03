@@ -28,7 +28,7 @@ namespace schedulers
 }
 
 struct schedulers::jni::default_scheduler
-: ::djinni::JniInterface<::schedulers::thread_pool, default_scheduler>
+: ::djinni::JniInterface<::schedulers::java_shared_native_pool::pool_t, default_scheduler>
 {
   using CppType = ::schedulers::default_scheduler;
   using JniType = jobject;

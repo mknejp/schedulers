@@ -34,7 +34,7 @@ SCENARIO("Non-empty work_item bejavior", "[work_item]")
   bool b = false;
   GIVEN("a work_item constructed from a function")
   {
-    work_item wi(std::allocator<char>(), [&b] { b = true; } );
+    work_item wi(std::allocator_arg, std::allocator<char>(), [&b] { b = true; } );
     THEN("it converts to true")
     {
       REQUIRE(bool(wi) == true);
@@ -56,7 +56,7 @@ SCENARIO("Non-empty work_item bejavior", "[work_item]")
     {
       auto operator()() && -> void { }
     };
-    work_item wi{std::allocator<char>(), rvalue_ref_callable{}};
+    work_item wi{std::allocator_arg, std::allocator<char>(), rvalue_ref_callable{}};
     THEN("it is callable")
     {
       std::move(wi)();
@@ -70,7 +70,7 @@ SCENARIO("work_item small-buffer-optimization selection strategy", "[work_item]"
   {
     size_t bytes = 0;
     int instances = 0;
-    work_item wi(tracking_allocator<>{&bytes}, tracked_callable{&instances});
+    work_item wi(std::allocator_arg, tracking_allocator<>{&bytes}, tracked_callable{&instances});
 
     THEN("small-object-optimization is enabled")
     {
@@ -90,7 +90,7 @@ SCENARIO("work_item small-buffer-optimization selection strategy", "[work_item]"
     };
     size_t bytes = 0;
     int instances = 0;
-    work_item wi(tracking_allocator<>{&bytes}, throwing_move_constructible{&instances});
+    work_item wi(std::allocator_arg, tracking_allocator<>{&bytes}, throwing_move_constructible{&instances});
 
     THEN("small-object-optimization is disabled")
     {
@@ -109,7 +109,7 @@ SCENARIO("work_item small-buffer-optimization selection strategy", "[work_item]"
     };
     size_t bytes = 0;
     int instances = 0;
-    work_item wi(tracking_allocator<>{&bytes}, large_function{&instances});
+    work_item wi(std::allocator_arg, tracking_allocator<>{&bytes}, large_function{&instances});
 
     THEN("small-object-optimization is disabled")
     {
@@ -125,7 +125,7 @@ SCENARIO("work_item behavior with small-object-optimization active", "[work_item
   int instances = 0;
   GIVEN("a work_item with small-buffer-optimization active")
   {
-    work_item wi(tracking_allocator<>{&bytes}, tracked_callable{&instances});
+    work_item wi(std::allocator_arg, tracking_allocator<>{&bytes}, tracked_callable{&instances});
 
     THEN("no allocation is performed")
     {
@@ -195,7 +195,7 @@ SCENARIO("work_item behavior with small-buffer-optimization inactive", "[work_it
 
       int x[100];
     };
-    work_item wi(realloc_forbidden_allocator<>{&bytes}, large_function{&instances});
+    work_item wi(std::allocator_arg, realloc_forbidden_allocator<>{&bytes}, large_function{&instances});
 
     THEN("allocation is performed")
     {

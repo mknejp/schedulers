@@ -79,6 +79,9 @@ namespace schedulers
   }
 }
 
+template<class Alloc>
+struct std::uses_allocator<schedulers::detail::work_item, Alloc> : std::true_type { };
+
 ////////////////////////////////////////////////////////////////////////////////
 // allocator nonsense that should be in std
 //
@@ -142,10 +145,10 @@ public:
   ~work_item();
 
   template<class Alloc, class F>
-  work_item(const Alloc& alloc, F&& f);
+  work_item(std::allocator_arg_t, const Alloc& alloc, F&& f);
 
   template<class Alloc>
-  work_item(const Alloc& alloc, std::nullptr_t) = delete;
+  work_item(std::allocator_arg_t, const Alloc& alloc, std::nullptr_t) = delete;
 
   explicit operator bool() const noexcept { return _target != nullptr; }
   auto operator()() && -> void { move(*_target)(); }
@@ -289,7 +292,7 @@ inline schedulers::detail::work_item::~work_item()
 }
 
 template<class Alloc, class F>
-schedulers::detail::work_item::work_item(const Alloc& alloc, F&& f)
+schedulers::detail::work_item::work_item(std::allocator_arg_t, const Alloc& alloc, F&& f)
 {
   assert(not_null(f) && "function is NULL");
 
