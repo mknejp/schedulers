@@ -33,7 +33,7 @@ auto main_thread_task_queue::clear() const noexcept -> void
 auto main_thread_task_queue::push(std::function<void()>&& f) const -> void
 {
   lock_t lock{_mutex};
-  _queue.emplace_back(std::move(f));
+  _queue.emplace_back(move(f));
 }
 
 auto main_thread_task_queue::try_pop(std::function<void()>& f) const -> bool
@@ -43,7 +43,7 @@ auto main_thread_task_queue::try_pop(std::function<void()>& f) const -> bool
   {
     return false;
   }
-  f = std::move(_queue.front());
+  f = move(_queue.front());
   _queue.pop_front();
   return true;
 }
@@ -68,7 +68,7 @@ auto thread_pool::task_queue::try_pop(std::function<void()>& f) const -> bool
   {
     return false;
   }
-  f = std::move(_queue.front());
+  f = move(_queue.front());
   _queue.pop_front();
   return true;
 }
@@ -81,7 +81,7 @@ auto thread_pool::task_queue::try_push(std::function<void()>& f)  const -> bool
     {
       return false;
     }
-    _queue.emplace_back(std::move(f));
+    _queue.emplace_back(move(f));
   }
   _ready.notify_one();
   return true;
@@ -98,7 +98,7 @@ auto thread_pool::task_queue::pop(std::function<void()>& f) const -> bool
   {
     return false;
   }
-  f = std::move(_queue.front());
+  f = move(_queue.front());
   _queue.pop_front();
   return true;
 }
@@ -107,7 +107,7 @@ auto thread_pool::task_queue::push(std::function<void()>&& f) const -> void
 {
   {
     lock_t lock{_mutex};
-    _queue.emplace_back(std::move(f));
+    _queue.emplace_back(move(f));
   }
   _ready.notify_one();
 }
@@ -117,7 +117,7 @@ auto thread_pool::task_queue::push(std::function<void()>&& f) const -> void
 //
 
 thread_pool::thread_pool(unsigned num_threads)
-: thread_pool([] (unsigned, auto&& f) { return std::thread{std::forward<decltype(f)>(f)}; }, num_threads)
+: thread_pool([] (unsigned, auto&& f) { return std::thread{forward<decltype(f)>(f)}; }, num_threads)
 {
 }
 
@@ -145,7 +145,7 @@ auto thread_pool::push(std::function<void()> f) const -> void
       return;
     }
   }
-  _task_queues[(thread % _num_threads)].push(std::move(f));
+  _task_queues[(thread % _num_threads)].push(move(f));
 }
 
 auto thread_pool::run(unsigned index) const -> void

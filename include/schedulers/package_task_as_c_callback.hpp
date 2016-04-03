@@ -107,7 +107,7 @@ namespace schedulers
 template<class FunctionPointerType, class F>
 auto schedulers::package_task_as_c_callback(F&& f)
 {
-  return schedulers::package_task_as_c_callback(std::allocator<char>{}, std::forward<F>(f));
+  return schedulers::package_task_as_c_callback(std::allocator<char>{}, forward<F>(f));
 }
 
 template<class FunctionPointerType, class Alloc, class F>
@@ -125,7 +125,7 @@ auto schedulers::package_task_as_c_callback(const Alloc& alloc, F&& f)
   constexpr auto can_elide_alloc = sizeof(function_t) <= sizeof(void*) && std::is_trivially_copyable<function_t>();
 
   return detail::package_task_as_c_callback_impl<FunctionPointerType>(bool_constant<all_ok>(),
-                                                                      std::forward<F>(f),
+                                                                      forward<F>(f),
                                                                       alloc,
                                                                       bool_constant<can_elide_alloc>());
 }
@@ -160,9 +160,9 @@ auto schedulers::detail::package_task_as_c_callback_impl(std::true_type /* valid
   FunctionPointerType f_ptr = [] (void* data)
   {
     deleter f{static_cast<node_t*>(data)};
-    std::move(get<1>(*f.ptr))();
+    move(get<1>(*f.ptr))();
   };
-  return make_c_callback(f_ptr, allocate_unique<node_t>(alloc, alloc, std::forward<F>(f)));
+  return make_c_callback(f_ptr, allocate_unique<node_t>(alloc, alloc, forward<F>(f)));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -203,7 +203,7 @@ auto schedulers::detail::package_task_as_c_callback_impl(std::true_type /* valid
     alignas(converter_t) char converter[sizeof(converter_t)];
     memcpy(converter, &data, sizeof(data));
     auto* f = reinterpret_cast<function_t*>(converter);
-    std::move(*f)();
+    move(*f)();
   };
 
   alignas(converter_t) char converter[sizeof(converter_t)];
@@ -252,7 +252,7 @@ public:
 
 protected:
   c_callback(FunctionPointerType f, DataOwner data)
-  : _f(f), _data(std::move(data))
+  : _f(f), _data(move(data))
   { }
 
 private:
@@ -268,10 +268,10 @@ auto schedulers::detail::make_c_callback(FunctionPointerType f_ptr, DataOwner ow
   struct constructible_result_t : result_t
   {
     constructible_result_t(FunctionPointerType f_ptr, DataOwner data)
-    : result_t(f_ptr, std::move(data))
+    : result_t(f_ptr, move(data))
     { }
   };
 
   // Slice away the subobject with no public constructor
-  return result_t{constructible_result_t{f_ptr, std::move(owner)}};
+  return result_t{constructible_result_t{f_ptr, move(owner)}};
 }

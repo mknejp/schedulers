@@ -23,6 +23,9 @@ namespace schedulers
 
   template<bool B>
   using bool_constant = std::integral_constant<bool, B>;
+
+  using std::forward;
+  using std::move;
   
   // Special tag that matches any parameter
   struct dont_care_t
@@ -85,15 +88,15 @@ auto schedulers::allocate_unique(const Alloc& alloc, Args&&... args)
       rebound_traits::deallocate(real_alloc, p, 1);
     }
   };
-  auto temp = std::unique_ptr<T, decltype(temp_deleter)>{rebound_traits::allocate(real_alloc, 1), std::move(temp_deleter)};
-  rebound_traits::construct(real_alloc, temp.get(), std::forward<Args>(args)...);
+  auto temp = std::unique_ptr<T, decltype(temp_deleter)>{rebound_traits::allocate(real_alloc, 1), move(temp_deleter)};
+  rebound_traits::construct(real_alloc, temp.get(), forward<Args>(args)...);
 
-  auto result = std::unique_ptr<T, decltype(deleter)>(temp.release(), std::move(deleter));
+  auto result = std::unique_ptr<T, decltype(deleter)>(temp.release(), move(deleter));
   return result;
 }
 
 template<class T, class X, class... Args>
 auto schedulers::allocate_unique(const std::allocator<X>& alloc, Args&&... args)
 {
-  return std::make_unique<T>(std::forward<Args>(args)...);
+  return std::make_unique<T>(forward<Args>(args)...);
 }

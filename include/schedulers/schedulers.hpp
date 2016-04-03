@@ -191,13 +191,13 @@ struct schedulers::available_scheduler
   template<class F>
   void operator()(F&& f) const
   {
-    self().schedule(std::allocator<char>{}, std::forward<F>(f));
+    self().schedule(std::allocator<char>{}, forward<F>(f));
   }
 
   template<class Alloc, class F>
   void operator()(const Alloc& alloc, F&& f) const
   {
-    self().schedule(alloc, std::forward<F>(f));
+    self().schedule(alloc, forward<F>(f));
   }
 
 private:
@@ -234,7 +234,7 @@ private:
   template<class Alloc, class F>
   void schedule(const Alloc& alloc, F&& f) const
   {
-    auto callback = package_task_as_c_callback<dispatch_function_t>(alloc, std::forward<F>(f));
+    auto callback = package_task_as_c_callback<dispatch_function_t>(alloc, forward<F>(f));
     dispatch_async_f(_queue, callback.get().data, callback.get().callback);
     callback.release();
   }
@@ -258,7 +258,7 @@ private:
   template<class Alloc, class F>
   auto scheduler(const Alloc& alloc, F&& f) const
   {
-    main_thread_task_queue::get().push({std::allocator_arg, alloc, std::forward<F>(f)});
+    main_thread_task_queue::get().push({std::allocator_arg, alloc, forward<F>(f)});
     dispatch_async_f(dispatch_get_main_queue(), nullptr, [] (void*)
                      {
                        std::function<void()> f;
@@ -297,7 +297,7 @@ private:
   template<class Alloc, class F>
   void schedule(const Alloc& alloc, F&& f) const
   {
-    auto callback = package_task_as_c_callback<LPTHREAD_START_ROUTINE>(alloc, std::forward<F>(f));
+    auto callback = package_task_as_c_callback<LPTHREAD_START_ROUTINE>(alloc, forward<F>(f));
     ::QueueUserWorkItem(callback.get().callback, callback.get().data, WT_EXECUTEDEFAULT);
     callback.release();
   }
@@ -319,7 +319,7 @@ private:
   template<class Alloc, class F>
   void schedule(const Alloc& alloc, F&& f) const
   {
-    auto callback = package_task_as_c_callback<em_arg_callback_func>(alloc, std::forward<F>(f));
+    auto callback = package_task_as_c_callback<em_arg_callback_func>(alloc, forward<F>(f));
     ::emscripten_async_call(callback.get().callback, callback.get().data, 0);
     callback.release();
   }
@@ -350,12 +350,12 @@ public:
 
   template<class... Args>
   shared_scheduler_base(Args&&... args)
-  : _ptr(std::make_shared<const Scheduler>(std::forward<Args>(args)...))
+  : _ptr(std::make_shared<const Scheduler>(forward<Args>(args)...))
   { }
 
   template<class Alloc, class... Args>
   shared_scheduler_base(std::allocator_arg_t, const Alloc& alloc, Args&&... args)
-  : _ptr(std::allocate_shared<const Scheduler>(alloc, std::forward<Args>(args)...))
+  : _ptr(std::allocate_shared<const Scheduler>(alloc, forward<Args>(args)...))
   { }
 
 private:
@@ -364,7 +364,7 @@ private:
   template<class Alloc, class F>
   void schedule(const Alloc& alloc, F&& f) const
   {
-    (*_ptr)(alloc, std::forward<F>(f));
+    (*_ptr)(alloc, forward<F>(f));
   }
 
   std::shared_ptr<const Scheduler> _ptr;
@@ -386,7 +386,7 @@ public:
 template<class Scheduler, class... Args>
 auto schedulers::make_shared_scheduler(Args&&... args)
 {
-  return shared_scheduler<std::decay_t<Scheduler>>{std::forward<Args>(args)...};
+  return shared_scheduler<std::decay_t<Scheduler>>{forward<Args>(args)...};
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -493,13 +493,13 @@ private:
   friend jni::default_scheduler;
 
   java_shared_native_pool(std::shared_ptr<thread_pool> pool)
-  : _pool(std::move(pool))
+  : _pool(move(pool))
   { }
 
   template<class Alloc, class F>
   void schedule(const Alloc& alloc, F&& f) const
   {
-    (*_pool)(alloc, std::forward<F>(f));
+    (*_pool)(alloc, forward<F>(f));
   }
 
   // Use shared_ptr so it can be passed to Java via Djinni without forcing java_shared_native_pool into a shared_ptr
@@ -530,7 +530,7 @@ private:
   template<class Alloc, class F>
   auto schedule(const Alloc& alloc, F&& f) const -> void
   {
-    main_thread_task_queue::get().push({std::allocator_arg, alloc, std::forward<F>(f)});
+    main_thread_task_queue::get().push({std::allocator_arg, alloc, forward<F>(f)});
     post();
   }
 
