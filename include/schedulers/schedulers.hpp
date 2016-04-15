@@ -479,7 +479,7 @@ template<class WorkQueue, class ThreadHandle>
 template<class ThreadFactory>
 schedulers::basic_thread_pool<WorkQueue, ThreadHandle>::basic_thread_pool(ThreadFactory f,
                                                                           unsigned num_threads)
-: _num_threads(num_threads)
+: _num_threads(std::max(1u, num_threads))
 {
   auto thread_proc = [this, i = 0] {};
   constexpr auto thread_factory_ok = std::is_constructible<ThreadHandle, std::result_of_t<ThreadFactory&(unsigned, const WorkQueue&, decltype(thread_proc))>>();
