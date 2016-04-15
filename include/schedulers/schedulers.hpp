@@ -486,7 +486,7 @@ schedulers::basic_thread_pool<WorkQueue, ThreadHandle>::basic_thread_pool(Thread
 
   static_assert(thread_factory_ok, "ThreadFactory must be Callable<R(unsigned, WorkQueue&, F)> with F a Callable<void()> and R convertible to ThreadHandle");
 
-  start(f, bool_constant<thread_factory_ok>());
+  start(f, thread_factory_ok);
 }
 
 template<class WorkQueue, class ThreadHandle>
