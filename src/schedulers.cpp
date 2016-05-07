@@ -50,7 +50,7 @@ auto main_thread_task_queue::try_pop(detail::work_item& f) const -> bool
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// thread_pool_work_queue
+// thread_pool_task_queue
 //
 
 auto thread_pool_task_queue::done() const -> void

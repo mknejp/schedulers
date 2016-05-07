@@ -692,7 +692,7 @@ private:
     (*_pool)(alloc, forward<F>(f));
   }
 
-  using pool_t = basic_thread_pool<thread_pool_work_queue, std::thread>;
+  using pool_t = basic_thread_pool<thread_pool_task_queue, std::thread>;
 
   // Use shared_ptr so it can be passed to Java via Djinni without forcing java_shared_native_pool into a shared_ptr
   std::shared_ptr<pool_t> _pool;
