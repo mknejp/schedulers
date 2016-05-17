@@ -261,6 +261,7 @@ private:
 class schedulers::libdispatch_main : public available_scheduler<libdispatch_main>
 {
 public:
+  libdispatch_main() = default;
   libdispatch_main(const libdispatch_main&) = delete;
   libdispatch_main(libdispatch_main&&) = delete;
   ~libdispatch_main()
@@ -272,9 +273,9 @@ private:
   friend available_scheduler<libdispatch_main>;
 
   template<class Alloc, class F>
-  auto scheduler(const Alloc& alloc, F&& f) const
+  auto schedule(const Alloc& alloc, F&& f) const
   {
-    main_thread_task_queue::get().push({alloc, forward<F>(f)});
+    main_thread_task_queue::get().push({std::allocator_arg, alloc, forward<F>(f)});
     dispatch_async_f(dispatch_get_main_queue(), nullptr, [] (void*)
                      {
                        detail::work_item f;
