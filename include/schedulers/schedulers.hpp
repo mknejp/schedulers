@@ -83,7 +83,7 @@ namespace schedulers
   /**
    Schedules to `libdispatch`'s global queue with default priority.
 
-   \note Avoid using this class directly and use system_thread_pool instead as it will automatically adjust to the platform you're on.
+   \note Avoid using this class directly and use default_scheduler instead as it will automatically adjust to the platform you're on.
    */
   class libdispatch_global_default;
   /**
@@ -93,19 +93,19 @@ namespace schedulers
   /**
    Schedules on the Win32 default thread pool.
 
-   \note Avoid using this class directly and use system_thread_pool instead as it will automatically adjust to the platform you're on.
+   \note Avoid using this class directly and use default_scheduler instead as it will automatically adjust to the platform you're on.
    */
   class win32_default_pool;
   /**
    Schedules on `emscripten_async_call`.
 
-   \note Avoid using this class directly and use system_thread_pool instead as it will automatically adjust to the platform you're on.
+   \note Avoid using this class directly and use default_scheduler instead as it will automatically adjust to the platform you're on.
    */
   class emscripten_async;
   /**
    Schedules to a C++ thread pool but provdes a `java.util.concurrent.Executor` interface to also support scheduling for Java tasks.
 
-   \note Avoid using this class directly and use system_thread_pool instead as it will automatically adjust to the platform you're on.
+   \note Avoid using this class directly and use default_scheduler instead as it will automatically adjust to the platform you're on.
    */
   class java_shared_native_pool;
   /**
