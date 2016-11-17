@@ -28,7 +28,7 @@ objc:
   header: '<dispatch/dispatch.h>'
 objcpp:
   translator: '::schedulers::objcpp::default_scheduler'
-  header: '"schedulers/schedulers-objcpp.hpp"'
+  header: '"schedulers/djinni/schedulers-objcpp.hpp"'
 java:
   reference: true
   typename: 'de.knejp.schedulers.SharedNativeThreadPoolExecutor'
@@ -37,6 +37,6 @@ java:
   boxed: 'de.knejp.schedulers.SharedNativeThreadPoolExecutor'
 jni:
   translator: '::schedulers::jni::default_scheduler'
-  header: '"schedulers/schedulers-jni.hpp"'
+  header: '"schedulers/djinni/schedulers-jni.hpp"'
   typename: jobject
   typeSignature: 'Lde/knejp/schedulers/SharedNativeThreadPoolExecutor;'
