@@ -23,7 +23,7 @@ cpp:
 objc:
   typename: 'dispatch_queue_t'
   pointer: false
-  hash: 'reinterpret_cast<NSUInteger>(%s)'
+  hash: '((NSUInteger)(%s))'
   boxed: 'dispatch_queue_t'
   header: '<dispatch/dispatch.h>'
 objcpp:
