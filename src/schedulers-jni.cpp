@@ -75,7 +75,7 @@ namespace
     {
       throw std::runtime_error{"Could not retrieve current JVM."};
     }
-    return std::thread{[f = std::forward<decltype(f)>(f), jvm, idx] () mutable
+    return std::thread{[f = std::forward<decltype(f)>(f), jvm, idx]
       {
         auto name = "SharedNativeWorker#" + std::to_string(idx);
         auto attrs = JavaVMAttachArgs
@@ -103,9 +103,9 @@ namespace
         detach_at_scope_exit detach_at_scope_exit{jvm};
 
         // Transfer a pointer to f through a call into Java so we have the app's class loader installed in this thread before we try to do any class lookup via JNI.
-        void(*callback)(void*) = [] (void* data)
+        void(*callback)(jlong) = [] (jlong data)
         {
-          (*static_cast<decltype(f)*>(data))();
+          (*reinterpret_cast<decltype(f)*>(data))();
         };
 
         const auto& data = djinni::JniClass<de_knejp_schedulers_NativeWorkerCallstack>::get();
@@ -126,9 +126,8 @@ CJNIEXPORT void JNICALL Java_de_knejp_schedulers_NativeWorkerCallstack_run(JNIEn
   {
     DJINNI_FUNCTION_PROLOGUE0(jniEnv);
 
-    auto callback = reinterpret_cast<void(*)(void*)>(j_callback);
-    auto data = reinterpret_cast<void*>(j_data);
-    callback(data);
+    auto callback = reinterpret_cast<void(*)(jlong)>(j_callback);
+    callback(j_data);
 
   }
   JNI_TRANSLATE_EXCEPTIONS_RETURN(jniEnv, )
