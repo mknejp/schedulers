@@ -227,22 +227,21 @@ private:
     return static_cast<void*>(_target) == &_buffer;
   }
 
-  template<class Alloc, class F>
-  auto emplace(const Alloc& alloc,
-               F&& f,
-               std::true_type /* ok */) -> void;
+  using f_is_ok = std::true_type;
+  using f_is_not_ok = std::false_type;
+  using can_embed_in_void_ptr = std::true_type;
+  using cannot_embed_in_void_ptr = std::false_type;
 
   template<class Alloc, class F>
-  auto emplace_impl(const Alloc& alloc,
-                    F&& f,
-                    std::true_type /* can embed */) -> void;
-  template<class Alloc, class F>
-  auto emplace_impl(const Alloc& alloc,
-                    F&& f,
-                    std::false_type /* can embed */) -> void;
+  auto emplace(const Alloc& alloc, F&& f, f_is_ok) -> void;
 
   template<class Alloc, class F>
-  auto emplace(const Alloc& alloc, F&& f, std::false_type /* not ok */) -> void;
+  auto emplace_impl(const Alloc& alloc, F&& f, can_embed_in_void_ptr) -> void;
+  template<class Alloc, class F>
+  auto emplace_impl(const Alloc& alloc, F&& f, cannot_embed_in_void_ptr) -> void;
+
+  template<class Alloc, class F>
+  auto emplace(const Alloc& alloc, F&& f, f_is_not_ok) -> void;
 
   buffer_t _buffer;
   base* _target;
@@ -311,9 +310,7 @@ schedulers::detail::work_item::work_item(std::allocator_arg_t, const Alloc& allo
 }
 
 template<class Alloc, class F>
-auto schedulers::detail::work_item::emplace(const Alloc& alloc,
-                                            F&& f,
-                                            std::true_type /* ok */) -> void
+auto schedulers::detail::work_item::emplace(const Alloc& alloc, F&& f, f_is_ok) -> void
 {
   using decayed = std::decay_t<F>;
   using embedded = fun_without_alloc<decayed>;
@@ -322,9 +319,7 @@ auto schedulers::detail::work_item::emplace(const Alloc& alloc,
 }
 
 template<class Alloc, class F>
-auto schedulers::detail::work_item::emplace_impl(const Alloc& alloc,
-                                                 F&& f,
-                                                 std::true_type /* can embed */) -> void
+auto schedulers::detail::work_item::emplace_impl(const Alloc& alloc, F&& f, can_embed_in_void_ptr) -> void
 {
   using decayed = std::decay_t<F>;
   new (static_cast<void*>(&_buffer)) fun_without_alloc<decayed>(forward<F>(f));
@@ -332,9 +327,7 @@ auto schedulers::detail::work_item::emplace_impl(const Alloc& alloc,
 }
 
 template<class Alloc, class F>
-auto schedulers::detail::work_item::emplace_impl(const Alloc& alloc,
-                                                 F&& f,
-                                                 std::false_type /* can embed */) -> void
+auto schedulers::detail::work_item::emplace_impl(const Alloc& alloc, F&& f, cannot_embed_in_void_ptr) -> void
 {
   using decayed = std::decay_t<F>;
   auto p = allocate_unique<fun_with_alloc<Alloc, decayed>>(alloc, alloc, forward<F>(f));

@@ -431,11 +431,19 @@ public:
 private:
   friend available_scheduler<basic_thread_pool<WorkQueue, ThreadHandle>>;
 
-  template<class ThreadFactory>
-  auto start(ThreadFactory& f, std::true_type /* ok */) -> void;
+  using f_is_ok = std::true_type;
+  using f_is_not_ok = std::false_type;
+  using work_t_ctor_has_allocator_arg = std::true_type;
+  using work_t_ctor_has_no_allocator_arg = std::false_type;
+  using work_t_uses_allocator = std::true_type;
+  using work_t_uses_no_allocator = std::false_type;
+  using work_t_uses_allocator_dont_care = dont_care_t;
 
   template<class ThreadFactory>
-  auto start(ThreadFactory& f, std::false_type /* not ok */) -> void;
+  auto start(ThreadFactory& f, f_is_ok) -> void;
+
+  template<class ThreadFactory>
+  auto start(ThreadFactory& f, f_is_not_ok) -> void;
 
   // A little dance to figure out how to construct work_t
   template<class Alloc, class F>
@@ -444,20 +452,20 @@ private:
   template<class Alloc, class F>
   auto schedule(const Alloc& alloc,
                 F&& f,
-                std::true_type /* has allocator_arg_t */,
-                dont_care_t /* uses_allocator */) const -> void;
+                work_t_ctor_has_allocator_arg,
+                work_t_uses_allocator_dont_care) const -> void;
   // Supports (f, alloc)
   template<class Alloc, class F>
   auto schedule(const Alloc& alloc,
                 F&& f,
-                std::false_type /* has allocator_arg_t */,
-                std::true_type /* uses_allocator */) const -> void;
+                work_t_ctor_has_no_allocator_arg,
+                work_t_uses_allocator) const -> void;
   template<class Alloc, class F>
   // No allocator support
   auto schedule(const Alloc& alloc,
                 F&& f,
-                std::false_type /* has allocator_arg_t */,
-                std::false_type /* uses_allocator */) const -> void;
+                work_t_ctor_has_no_allocator_arg,
+                work_t_uses_no_allocator) const -> void;
   auto schedule(work_t&& work) const -> void;
 
   auto run(int index) const -> void;
@@ -497,8 +505,7 @@ schedulers::basic_thread_pool<WorkQueue, ThreadHandle>::~basic_thread_pool()
 
 template<class WorkQueue, class ThreadHandle>
 template<class ThreadFactory>
-auto schedulers::basic_thread_pool<WorkQueue, ThreadHandle>::start(ThreadFactory& f,
-                                                                   std::true_type /* ok */)
+auto schedulers::basic_thread_pool<WorkQueue, ThreadHandle>::start(ThreadFactory& f, f_is_ok)
 -> void
 {
   assert(_num_threads > 0 && "invalid number of threads");
@@ -525,8 +532,8 @@ template<class WorkQueue, class ThreadHandle>
 template<class Alloc, class F>
 auto schedulers::basic_thread_pool<WorkQueue, ThreadHandle>::schedule(const Alloc& alloc,
                                                                       F&& f,
-                                                                      std::true_type /* has allocator_arg_t */,
-                                                                      dont_care_t /* uses_allocator */) const
+                                                                      work_t_ctor_has_allocator_arg,
+                                                                      work_t_uses_allocator_dont_care) const
 -> void
 {
   schedule(work_t{std::allocator_arg, alloc, forward<F>(f)});
@@ -536,8 +543,8 @@ template<class WorkQueue, class ThreadHandle>
 template<class Alloc, class F>
 auto schedulers::basic_thread_pool<WorkQueue, ThreadHandle>::schedule(const Alloc& alloc,
                                                                       F&& f,
-                                                                      std::false_type /* has allocator_arg_t */,
-                                                                      std::true_type /* uses_allocator */) const
+                                                                      work_t_ctor_has_no_allocator_arg,
+                                                                      work_t_uses_allocator) const
 -> void
 {
   schedule(work_t{forward<F>(f), alloc});
@@ -547,8 +554,8 @@ template<class WorkQueue, class ThreadHandle>
 template<class Alloc, class F>
 auto schedulers::basic_thread_pool<WorkQueue, ThreadHandle>::schedule(const Alloc& /*alloc*/,
                                                                       F&& f,
-                                                                      std::false_type /* has allocator_arg_t */,
-                                                                      std::false_type /* uses_allocator */) const
+                                                                      work_t_ctor_has_no_allocator_arg,
+                                                                      work_t_uses_no_allocator) const
 -> void
 {
   schedule(work_t{forward<F>(f)});
