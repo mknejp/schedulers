@@ -11,7 +11,7 @@ include(GNUInstallDirs)
 # sources
 #
 
-add_library(schedulers SHARED
+add_library(schedulers
   "include/schedulers/djinni/schedulers-jni.hpp"
   "include/schedulers/djinni/schedulers-objcpp.hpp"
   "include/schedulers/package_task_as_c_callback.hpp"
