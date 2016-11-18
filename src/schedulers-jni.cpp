@@ -55,16 +55,11 @@ namespace
   // Sometimes in jni.h the signature is
   // AttachCurrentThread(void**, void*) and sometimes it's
   // AttachCurrentThread(JNIEnv**, void*).
-  // The overloads are templates to suppress "unused function" warnings.
-  template<class = void>
-  auto attachCurrentThread(jint(JavaVM::*f)(void**, void*), JavaVM* jvm, JNIEnv** env, void* args)
+  template<class Env>
+  JNIEnv* attachCurrentThread(jint(JavaVM::*f)(Env**, void*), JavaVM* jvm, void* args)
   {
-    return (jvm->*f)(reinterpret_cast<void**>(env), args);
-  }
-  template<class = void>
-  auto attachCurrentThread(jint(JavaVM::*f)(JNIEnv**, void*), JavaVM* jvm, JNIEnv** env, void* args)
-  {
-    return (jvm->*f)(env, args);
+    Env *e;
+    return ((jvm->*f)(&e, args) == JNI_OK ? static_cast<JNIEnv*>(e) : nullptr);
   }
 
   auto make_java_attached_thread = [] (int idx, const auto& queue, auto&& f)
@@ -89,8 +84,8 @@ namespace
           const_cast<char*>(name.c_str()),
           nullptr,
         };
-        JNIEnv* env;
-        if(attachCurrentThread<>(&JavaVM::AttachCurrentThread, jvm, &env, &attrs) != JNI_OK || !env)
+        auto env = attachCurrentThread(&JavaVM::AttachCurrentThread, jvm, &attrs);
+        if(!env)
         {
           // Since we're on a custom thread this will terminate the program but hopefully at least display an error message somewhere.
           throw std::runtime_error{"Unable to attach JVM to native thread."};
