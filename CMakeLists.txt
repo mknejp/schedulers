@@ -1,23 +1,24 @@
-cmake_minimum_required(VERSION 3.0.0)
+cmake_minimum_required(VERSION 3.6.0)
 
 project(schedulers)
 
 option(SCHEDULERS_FOR_JAVA "Add support for Java Executors. Requires the Djinni support library." OFF)
 option(SCHEDULERS_FOR_ANDROID "Add support for Android's Loopers." OFF)
 
-enable_testing()
+include(GNUInstallDirs)
 
-include_directories(include)
+###############################################################################
+# sources
+#
 
-set(SCHEDULERS_LIB_SRC
-  ${CMAKE_CURRENT_LIST_DIR}/include/schedulers/package_task_as_c_callback.hpp
-  ${CMAKE_CURRENT_LIST_DIR}/include/schedulers/schedulers.hpp
-  ${CMAKE_CURRENT_LIST_DIR}/include/schedulers/utils.hpp
+add_library(schedulers SHARED
+  "include/schedulers/djinni/schedulers-jni.hpp"
+  "include/schedulers/djinni/schedulers-objcpp.hpp"
+  "include/schedulers/package_task_as_c_callback.hpp"
+  "include/schedulers/schedulers.hpp"
 
-  ${CMAKE_CURRENT_LIST_DIR}/src/schedulers.cpp
+  "src/schedulers.cpp"
 )
-
-add_library(schedulers ${SCHEDULERS_LIB_SRC})
 
 if(SCHEDULERS_FOR_ANDROID)
   target_sources(schedulers PRIVATE "src/schedulers-android.cpp")
@@ -29,6 +30,39 @@ if(SCHEDULERS_FOR_JAVA)
   target_compile_definitions(schedulers PUBLIC SCHEDULERS_FOR_JAVA)
 endif()
 
+source_group("" FILES
+  "include/schedulers/package_task_as_c_callback.hpp"
+  "include/schedulers/schedulers.hpp"
+  "src/schedulers-android.cpp"
+  "src/schedulers-jni.cpp"
+  "src/schedulers.cpp"
+)
+source_group("djinni" FILES
+  "include/schedulers/djinni/schedulers-objcpp.hpp"
+  "include/schedulers/djinni/schedulers-jni.hpp"
+)
+###############################################################################
+# configuration
+#
+
+set_target_properties(schedulers PROPERTIES
+  CXX_STANDARD 14
+  CXX_STANDARD_REQUIRED true
+  CXX_EXTENSIONS false
+)
+
+target_include_directories(schedulers
+  PRIVATE
+  "src"
+  PUBLIC
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>"
+  "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
+)
+
+###############################################################################
+# dependencies
+#
+
 if(SCHEDULERS_FOR_JAVA)
   find_package(JNI REQUIRED QUIET)
   find_package(djinni REQUIRED QUIET)
@@ -37,7 +71,24 @@ if(SCHEDULERS_FOR_JAVA)
   target_link_libraries(schedulers PUBLIC ${JNI_LIBRARIES} djinni::djinni)
 endif()
 
-set_property(TARGET schedulers PROPERTY CXX_STANDARD 14)
+###############################################################################
+# installation
+#
+
+install(TARGETS schedulers
+  RUNTIME   DESTINATION "${CMAKE_INSTALL_BINDIR}"
+  ARCHIVE   DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+  LIBRARY   DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+  FRAMEWORK DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+)
+
+install(DIRECTORY "include/" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+
+###############################################################################
+# tests
+#
+
+enable_testing()
 
 add_subdirectory(test)
 add_subdirectory(unittests)
