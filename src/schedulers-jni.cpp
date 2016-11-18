@@ -122,14 +122,16 @@ CJNIEXPORT void JNICALL Java_de_knejp_schedulers_NativeWorkerCallstack_run(JNIEn
                                                                            jlong j_callback,
                                                                            jlong j_data)
 {
-  try {
+  try
+  {
     DJINNI_FUNCTION_PROLOGUE0(jniEnv);
 
     auto callback = reinterpret_cast<void(*)(void*)>(j_callback);
     auto data = reinterpret_cast<void*>(j_data);
     callback(data);
 
-  } JNI_TRANSLATE_EXCEPTIONS_RETURN(jniEnv, )
+  }
+  JNI_TRANSLATE_EXCEPTIONS_RETURN(jniEnv, )
 }
 
 java_shared_native_pool::java_shared_native_pool(int num_threads)
@@ -148,10 +150,12 @@ CJNIEXPORT void JNICALL Java_de_knejp_schedulers_SharedNativeThreadPoolExecutor_
                                                                                                jobject /*this*/,
                                                                                                jlong nativeRef)
 {
-  try {
+  try
+  {
     DJINNI_FUNCTION_PROLOGUE1(jniEnv, nativeRef);
     delete reinterpret_cast<djinni::CppProxyHandle<thread_pool>*>(nativeRef);
-  } JNI_TRANSLATE_EXCEPTIONS_RETURN(jniEnv, )
+  }
+  JNI_TRANSLATE_EXCEPTIONS_RETURN(jniEnv, )
 }
 
 CJNIEXPORT void JNICALL Java_de_knejp_schedulers_SharedNativeThreadPoolExecutor_native_1execute(JNIEnv* jniEnv,
@@ -159,7 +163,8 @@ CJNIEXPORT void JNICALL Java_de_knejp_schedulers_SharedNativeThreadPoolExecutor_
                                                                                                 jlong nativeRef,
                                                                                                 jobject j_r)
 {
-  try {
+  try
+  {
     DJINNI_FUNCTION_PROLOGUE1(jniEnv, nativeRef);
     const auto& ref = djinni::objectFromHandleAddress<thread_pool>(nativeRef);
 
@@ -204,5 +209,6 @@ CJNIEXPORT void JNICALL Java_de_knejp_schedulers_SharedNativeThreadPoolExecutor_
 
     (*ref)(F{jniEnv, j_r});
 
-  } JNI_TRANSLATE_EXCEPTIONS_RETURN(jniEnv, )
+  }
+  JNI_TRANSLATE_EXCEPTIONS_RETURN(jniEnv, )
 }
