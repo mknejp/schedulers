@@ -14,9 +14,8 @@ The library does not attempt to be a panacea. It does exactly what it says on th
 Unfortunately not. There is one file you have to compile (`src/schedulers.cpp)`, unless you are also using Java and Android in which case the number increases by one for each (`src/schedulers-jni.cpp` and `src/schedulers-android.cpp`). The `src/java` directory also contains Java files which must be included in your project in the Java/Android case or the integration with Java will not work.
 
 ## Getting Started
-If your project does not require Java or Android you can use the provided CMake project to build the library. Otherwise you have to add the `src/schedulers-jni.hpp`, `src/java/**/*.java` and (if on Android) `src/schedulers-android.cpp` files to your build. I hope to be able to wrap this all up with CMake so the manual steps are not necessary.
-
-If you are compiling with the NDK then the Android-compatible schedulers are enabled automatically when including `schedulers/schedulers.hpp`. If your project is using Java (but not Android) you have to define `SCHEDULERS_FOR_JAVA` before including `schedulers/schedulers.hpp` to tell the library that these are enabled, which they are not by default because they depend on `jni.h`.
+The project contains a `CMakeLists.txt` with the `schedulers` library target. All you have to do to use it in your own CMake project is link against the library and set these options if required:
+- `SCHEDULERS_FOR_JAVA` enables the `java_shared_native_pool` scheduler. It can be used from C++ and Java (via the `java.util.concurrent.Executor` interface) alike. This scheduler requires the [dropbox/djinni](https://github.com/dropbox/djinni) library, specifically the pull request [dropbox/djinni#248](https://github.com/dropbox/djinni/pull/248). You also have to compile Java support code located at `src/java/**/*.java`. I hope to be able to wrap this all up with CMake (and gradle for Android) so the manual steps are not necessary.
 
 ### The Interface of a Scheduler
 Schedulers in this library have a very simple interface: they are simple function objects.
@@ -42,7 +41,7 @@ These schedulers provide access to an application's "main" or "UI" thread. They 
 This scheduler wraps the "main queue" of Apple's GCD that is provided by the system and runs all the UI code by default. If your application does not have a UI you have to call `libdispatch_main()` on your main thread to start the event loop.
 
 #### android_main_looper
-Uses the `ALooper` API of Android to schedule tasks on your application's main event loop. This only works if your application is rooted in a Java activity.
+Uses the `ALooper` API of Android to schedule tasks on your application's main event loop. This only works if your application is rooted in an activity.
 
 #### Others
 More schedulers will be added over time.
@@ -54,7 +53,7 @@ This is the default scheduler to use when doing stuff "in the background". It au
 |----------|----------------|---------|
 | Apple | `libdispatch_global_default` | Uses the GCD global queue with "default" priority. |
 | Win32 | `win32_default_pool` | Uses the default Windows thread pool provided for every application and shared with the Concurrency Runtime. |
-| Java (+Android) | `java_shared_native_pool` | A thread pool which is configured in such a way that it can run C++ and Java tasks alike. It can be converted to a `java.util.concurrent.Executor` (see the Djinni-support section). |
+| Java (+Android) | `java_shared_native_pool` | A thread pool which is configured in such a way that it can run C++ and Java tasks alike. It can be converted to a `java.util.concurrent.Executor` (see the Djinni-support section). Only available if the `SCHEDULERS_FOR_JAVA` CMake option is enabled. |
 | Emscripten | `emscripten_async` | Delegates all calls to `emscripten_async_call()`. |
 | otherwise | `thread_pool` | A traditional thread pool. |
 
@@ -77,7 +76,7 @@ namespace my_app
 }
 
 ```
-It is *not an error* to refer to, or instantiate, an unavailable scheduler as long as you don't attempt to actually use it for scheduling tasks. This means the compiler will not complain if you use these types in an unevaluated context or in bodies of functions not executed for the target platform.
+It is *not an error* to refer to, or instantiate, an unavailable scheduler as long as you don't attempt to actually use it for scheduling tasks. This means the compiler will not complain if you use these types in an unevaluated context or in bodies of functions not instantiated for the target platform.
 
 In a hypothetical scenario, involving more options, tag dispatching is your friend:
 ```cpp
