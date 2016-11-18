@@ -15,6 +15,7 @@ add_library(schedulers
   "include/schedulers/djinni/schedulers-objcpp.hpp"
   "include/schedulers/package_task_as_c_callback.hpp"
   "include/schedulers/schedulers.hpp"
+  "include/schedulers/utils.hpp"
 
   "src/schedulers.cpp"
 )
@@ -32,6 +33,7 @@ endif()
 source_group("" FILES
   "include/schedulers/package_task_as_c_callback.hpp"
   "include/schedulers/schedulers.hpp"
+  "include/schedulers/utils.hpp"
   "src/schedulers-android.cpp"
   "src/schedulers-jni.cpp"
   "src/schedulers.cpp"
