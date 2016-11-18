@@ -13,6 +13,7 @@
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #pragma once
+
 #include "schedulers/package_task_as_c_callback.hpp"
 #include <deque>
 #include <thread>
@@ -28,15 +29,6 @@
 #elif defined(__EMSCRIPTEN__)
 #include <emscripten.h>
 
-#elif defined(__ANDROID__) || defined(ANDROID)
-#define SCHEDULERS_FOR_ANDROID
-#if !defined(SCHEDULERS_FOR_JAVA)
-#define SCHEDULERS_FOR_JAVA
-#endif
-#endif
-
-#if defined(SCHEDULERS_FOR_JAVA)
-#include <djinni_support.hpp>
 #endif
 
 namespace schedulers

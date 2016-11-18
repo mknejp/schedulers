@@ -1,3 +1,7 @@
+if(NOT SCHEDULERS_FOR_JAVA)
+  return()
+endif()
+
 find_package(Java REQUIRED)
 include(UseJava)
 

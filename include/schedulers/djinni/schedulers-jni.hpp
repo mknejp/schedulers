@@ -14,12 +14,8 @@
 
 #pragma once
 
-#ifdef SCHEDULERS_FOR_JAVA
-#undef SCHEDULERS_FOR_JAVA
-#endif
-#define SCHEDULERS_FOR_JAVA 1
-
 #include "schedulers/schedulers.hpp"
+#include <djinni/jni/djinni_support.hpp>
 
 namespace schedulers
 {

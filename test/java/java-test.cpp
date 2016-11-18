@@ -12,9 +12,8 @@
 // ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-#define SCHEDULERS_FOR_JAVA 1
 #include "schedulers/schedulers.hpp"
-#include "schedulers/schedulers-jni.hpp"
+#include "schedulers/djinni/schedulers-jni.hpp"
 #include <condition_variable>
 #include <iostream>
 
