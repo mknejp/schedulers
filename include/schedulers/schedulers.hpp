@@ -53,7 +53,7 @@ namespace schedulers
 
    The number of threads is fixed upon creation of the pool.
 
-   \tparam WorkQueue The type used for the per-thread work queue. Must be `DefaultConstructible`. All calls to the queues (except the constructor and destructor) must be data race free. The nested type `work_t` must have one of these constructor signatures: `work_t(std::allocator_arg_t, Alloc, F)`, or `work_t(F, Alloc)` if `std::uses_allocator<work_t, Alloc>::value` is `true`, or `work_t(F)` otherwise.
+   \tparam WorkQueue The type used for the per-thread work queue. Must be `DefaultConstructible`. All calls to the queues (except the constructor and destructor) must be data race free. The nested type `work_t` must have one of these constructor signatures: `work_t(std::allocator_arg_t, Alloc, F)`, or `work_t(F, Alloc)` if `std::uses_allocator<work_t, Alloc>::value` is `true`, or `work_t(F)` otherwise. The queue must have the method `done()` to signal its associated thread that it should stop processing work and exit as soon as possible.
    \tparam ThreadHandle The type used to own the system threads. The factory provided in the constructor is called to create and launch each thread. The type must have `join()` method with the same semantics as `std::thread::join()`.
    */
   template<class WorkQueue, class ThreadHandle>
