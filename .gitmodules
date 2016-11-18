@@ -1,3 +1,0 @@
-[submodule "utils/djinni"]
-	path = utils/djinni
-	url = git@github.com:dropbox/djinni.git
