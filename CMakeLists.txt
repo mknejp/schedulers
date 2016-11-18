@@ -2,8 +2,7 @@ cmake_minimum_required(VERSION 3.6.0)
 
 project(schedulers)
 
-option(SCHEDULERS_FOR_JAVA "Add support for Java Executors. Requires the Djinni support library." OFF)
-option(SCHEDULERS_FOR_ANDROID "Add support for Android's Loopers." OFF)
+option(SCHEDULERS_FOR_JAVA "Add support for Java-compatible thread pools. Requires the Djinni support library." OFF)
 
 include(GNUInstallDirs)
 
@@ -20,7 +19,7 @@ add_library(schedulers
   "src/schedulers.cpp"
 )
 
-if(SCHEDULERS_FOR_ANDROID)
+if(ANDROID)
   target_sources(schedulers PRIVATE "src/schedulers-android.cpp")
   target_compile_definitions(schedulers PUBLIC SCHEDULERS_FOR_ANDROID)
 endif()
