@@ -72,6 +72,10 @@ if(SCHEDULERS_FOR_JAVA)
   target_link_libraries(schedulers PUBLIC ${JNI_LIBRARIES} djinni::djinni)
 endif()
 
+if(ANDROID)
+  target_link_libraries(schedulers PUBLIC android)
+endif()
+
 ###############################################################################
 # installation
 #
