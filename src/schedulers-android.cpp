@@ -16,6 +16,7 @@
 #include <android/looper.h>
 #include <fcntl.h>
 #include <cerrno>
+#include <unistd.h>
 
 using namespace schedulers;
 
